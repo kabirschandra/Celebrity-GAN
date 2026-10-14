@@ -1,10 +1,5 @@
 
-"""Convolutional discriminator for classifying real and fake faces.
-
-Receives a 32x32 RGB image and progressively extracts features
-using convolutional layers before producing one probability.
-"""
-
+"""Convolutional discriminator for RGB face images."""
 
 import torch
 import torch.nn as nn
@@ -15,17 +10,16 @@ class Descriminator(nn.Module):
     def __init__(self):
         super().__init__()
 
-        # Resolution must be a power of 2, at least 8.
         if res < 8 or (res & (res - 1)) != 0:
-            raise ValueError("res must be 8, 16, 32, 64, 128, etc.")
+            raise ValueError("res must be a power of 2 >= 8")
 
         layers = []
 
         current_res = res
         in_channels = 3
-        out_channels = 32
+        out_channels = 64
 
-        # Repeatedly halve the image resolution until 4x4.
+        # Reduce image resolution while increasing feature maps.
         while current_res > 4:
             layers.extend([
                 nn.Conv2d(
@@ -35,10 +29,10 @@ class Descriminator(nn.Module):
             ])
 
             in_channels = out_channels
-            out_channels = min(out_channels * 2, 256)
+            out_channels = min(out_channels * 2, 512)
             current_res //= 2
 
-        # Convert the final 4x4 feature maps into a probability.
+        # Classify the final feature maps.
         layers.extend([
             nn.Flatten(),
             nn.Linear(in_channels * 4 * 4, 1),

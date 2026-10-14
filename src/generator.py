@@ -1,10 +1,8 @@
 
-"""Convolutional generator for producing 32x32 RGB face images.
+"""Convolutional generator for RGB face images.
 
-Takes 100 random numbers and progressively transforms them into
-a 32x32 RGB image using transposed convolutional layers.
+Uses the resolution and latent dimension from constants.py.
 """
-
 
 import torch
 import torch.nn as nn
@@ -15,27 +13,27 @@ class Generator(nn.Module):
     def __init__(self):
         super().__init__()
 
-        # Resolution must be a power of 2, at least 8.
         if res < 8 or (res & (res - 1)) != 0:
-            raise ValueError("res must be 8, 16, 32, 64, 128, etc.")
+            raise ValueError("res must be a power of 2 >= 8")
+
+        # Start with 512 feature maps at 4x4.
+        start_channels = 512
 
         layers = [
-            # Convert random noise into 256 feature maps of size 4x4.
-            nn.Linear(latent_dim, 256 * 4 * 4),
-            nn.Unflatten(1, (256, 4, 4)),
-            nn.BatchNorm2d(256),
+            nn.Linear(latent_dim, start_channels * 4 * 4),
+            nn.Unflatten(1, (start_channels, 4, 4)),
+            nn.BatchNorm2d(start_channels),
             nn.ReLU()
         ]
 
-        # Repeatedly double the image resolution.
         current_res = 4
-        channels = 256
+        channels = start_channels
 
+        # Double spatial resolution at each stage.
         while current_res < res // 2:
-            next_channels = max(channels // 2, 32)
+            next_channels = max(channels // 2, 64)
 
             layers.extend([
-                # Double width and height.
                 nn.ConvTranspose2d(
                     channels, next_channels, 4, 2, 1
                 ),
@@ -46,7 +44,7 @@ class Generator(nn.Module):
             channels = next_channels
             current_res *= 2
 
-        # Final upsampling layer produces a 3-channel RGB image.
+        # Convert feature maps into RGB pixels.
         layers.extend([
             nn.ConvTranspose2d(channels, 3, 4, 2, 1),
             nn.Tanh()
@@ -56,4 +54,3 @@ class Generator(nn.Module):
 
     def forward(self, z):
         return self.net(z)
-
